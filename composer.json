@@ -1,0 +1,21 @@
+{
+  "name": "pcomm/s3-media-library-sync",
+  "description": "Plugin for syncing files in the Media Library with the files that are in S3",
+  "version": "0.0.0",
+  "type": "wordpress-plugin",
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://wpackagist.org"
+    }
+  ],
+  "require": {
+    "php": ">=7.1",
+    "wpackagist-plugin/amazon-s3-and-cloudfront": "2.0.*"
+  },
+  "autoload": {
+    "psr-4": {
+      "PComm\\S3MediaLibrary\\": "src/"
+    }
+  }
+}
