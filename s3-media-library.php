@@ -3,7 +3,7 @@
 Plugin Name: S3/Media Library Syncer
 Plugin URI: http://www.pcommsites.com
 Description: Plugin for syncing the Media Library to match files in S3.
-Version: 0.0.2
+Version: 0.0.3
 Author: PartnerComm
 */
 
@@ -17,9 +17,10 @@ function s3_media_library_syncer_add_page() {
 }
 
 function s3_media_library_syncer_options_page() {
-    $display = "Click run!";
+    $display = "Click Test Syncer!";
+    $allowRun = false;
     if($_POST) {
-        if(!empty($_POST['runS3MediaSyncer'])) {
+        if(!empty($_POST['testS3MediaSyncer']) || !empty($_POST['runS3MediaSyncer'])) {
             if(defined("AS3CF_SETTINGS")) {
                 $settings = unserialize(AS3CF_SETTINGS);
                 if(!empty($settings['provider']) && $settings['provider'] == 'aws') {
@@ -28,7 +29,9 @@ function s3_media_library_syncer_options_page() {
                         !empty($settings['secret-access-key'])
                     ) {
                         $controller = new \PComm\S3MediaLibrary\Controller();
-                        $display = $controller->run($settings);
+                        $display = $controller->run($settings, !empty($_POST['runS3MediaSyncer']));
+                        $display .= "Completed";
+                        $allowRun = true;
                     } else {
                         $display = "Key ID and Access Key not provided";
                     }
@@ -47,10 +50,15 @@ function s3_media_library_syncer_options_page() {
         <h2>S3/Media Library Syncer</h2>
         <div>
             <form method="post">
-                <input name="runS3MediaSyncer" class="button-primary" type="submit" value="Run Syncer"/>
+                <input name="testS3MediaSyncer" class="button-primary" type="submit" value="Test Syncer"/>
+                <?php
+                if($allowRun) {
+                    echo '<input name="runS3MediaSyncer" class="button-primary" type="submit" value="Run Syncer"/>';
+                }
+                ?>
             </form>
         </div>
-        <textarea rows="4" cols="100" disabled><?=$display?></textarea>
+        <textarea rows="25" cols="100" disabled><?=$display?></textarea>
     </div>
 
     <?php
