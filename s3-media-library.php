@@ -17,7 +17,7 @@ function s3_media_library_syncer_add_page() {
 }
 
 function s3_media_library_syncer_options_page() {
-    $display = "Click Test Syncer!";
+    $display = "Click 'Test Syncer'! After you do a test run, you'll be able to use the 'Run Syncer' to actually apply the changes";
     $allowRun = false;
     if($_POST) {
         if(!empty($_POST['testS3MediaSyncer']) || !empty($_POST['runS3MediaSyncer'])) {
