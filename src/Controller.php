@@ -148,23 +148,6 @@ class Controller {
         return $uploadData['url'];
     }
 
-    // @TODO Combine with saveFileLocally
-    protected function getFile($file) {
-        $url = $this->getS3Url($file);
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        $result = curl_exec($ch);
-        if(!empty(curl_error($ch))) {
-            throw new \Exception("Curl error: ". curl_error($ch));
-        }
-        return $ch;
-    }
-
-    // @TODO Combine with saveFileLocally
-    protected function getFileType($file) {
-        return curl_getinfo($this->getFile($file), CURLINFO_CONTENT_TYPE);
-    }
-
     protected function getMediaLibraryFiles() {
         $media_query = new \WP_Query(
             array(
