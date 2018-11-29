@@ -51,11 +51,15 @@ class Controller {
         return $this->result;
     }
 
+    protected function removeExtension($file) {
+        return pathinfo($file, PATHINFO_FILENAME);
+    }
+
     protected function addFile($file) {
         global $wpdb;
 
         $file_path = $this->generateFilePath($file);
-        $title = pathinfo($file, PATHINFO_FILENAME);
+        $title = $this->removeExtension($file);
 
         $file_type = wp_check_filetype($file, null);
         $attachment = [
@@ -81,63 +85,11 @@ class Controller {
 
         apply_filters('wp_handle_upload', array('file' => $file_path, 'url' => $this->getS3Url($file), 'type' => $file_type), 'upload');
         if ($attach_data = wp_generate_attachment_metadata($attach_id, $file_path)) {
+            $attach_data['file'] = str_replace("/tmp/", "", $attach_data['file']);
             wp_update_attachment_metadata($attach_id, $attach_data);
+            $this->syncThumbnailsS3($file);
+            $this->cleanUpFile($file);
         }
-        /*
-        $title = pathinfo($file, PATHINFO_FILENAME);
-        $fileType = $this->getFileType($file);
-
-        $wpdb->insert($GLOBALS['table_prefix'] .'posts', [
-            'post_author' => get_current_user_id(),
-            'post_date' => date('Y-m-d H:i:s'),
-            'post_date_gmt' => gmdate('Y-m-d H:i:s'),
-            'post_title' => $title,
-            'post_status' => 'inherit',
-            'ping_status' => 'closed',
-            'post_name' => strtolower($title),
-            'post_modified' => date('Y-m-d H:i:s'),
-            'post_modified_gmt' => gmdate('Y-m-d H:i:s'),
-            'guid' => $this->getUploadDirectory() ."/{$file}",
-            'post_type' => 'attachment',
-            'post_mime_type' => $fileType,
-            'post_content' => '',
-            'post_excerpt' => '',
-            'to_ping' => '',
-            'pinged' => '',
-            'post_content_filtered' => ''
-        ]);
-
-        $imageId = $wpdb->insert_id;
-
-        $wpdb->insert($GLOBALS['table_prefix'] .'postmeta', [
-            'meta_id' => NULL,
-            'post_id' => $imageId,
-            'meta_key' => 'wp_attached_file',
-            'meta_value' => $file
-        ]);
-        /*
-        $sql = "INSERT INTO {$GLOBALS['table_prefix']}posts ".
-            "(post_author, post_date, post_date_gmt, post_title, post_status, ".
-            "ping_status, post_name, post_modified, post_modified_gmt, ".
-            "guid, post_type, post_mime_type, post_content, post_excerpt, to_ping, ".
-            "pinged, post_content_filtered) ".
-            "VALUES (" .
-            get_current_user_id() .", '". date('Y-m-d H:i:s') ."', '".
-            gmdate('Y-m-d H:i:s') ."', '". $title ."', 'inherit', 'closed', '".
-            strtolower($title) ."', '". date('Y-m-d H:i:s') ."', '". gmdate('Y-m-d H:i:s')
-            ."', '". $this->getUploadDirectory() ."/{$file}" ."', 'attachment', '".
-            $fileType ."', '', '', '', '', ''"
-            .");";
-
-        $this->result .= "$sql\n\n";
-        $sql = "INSERT INTO {$wpdb->prefix}postmeta VALUES (".
-            "NULL, LAST_INSERT_ID(), '_wp_attached_file', '{$file}'".
-        "), (".
-            "NULL, LAST_INSERT_ID(), 'amazonS3_info', '". $this->getS3Info($file) ."'".
-        ");";
-        $this->result .= "$sql\n\n";
-         */
-        //$this->getAttachmentMetaData($imageId, $file);
     }
 
     // @TODO
@@ -145,8 +97,23 @@ class Controller {
         global $wpdb;
     }
 
+    protected function syncThumbnailsS3($file) {
+        $command = "cd /tmp/". $this->removeExtension($file) ." && ";
+        $command .= $this->getCredentialPrefix();
+        $command .= "aws s3 sync . s3://{$this->bucketData->name}/ --grants read=uri=http://acs.amazonaws.com/groups/global/AllUsers --region {$this->bucketData->region}";
+        $result = shell_exec($command);
+        if(!$result) {
+            throw new \Exception("Failure syncing media files: ". $result);
+        }
+    }
+
+    protected function cleanUpFile($file) {
+        shell_exec("rm -rf /tmp/". $this->removeExtension($file) ."");
+    }
+
     protected function generateFilePath($file) {
-        $location = "/tmp/$file";
+        $location = "/tmp/". $this->removeExtension($file) ."/$file";
+        shell_exec("mkdir -p /tmp/". $this->removeExtension($file));
         $ch = curl_init($this->getS3Url($file));
         curl_setopt($ch, CURLOPT_HEADER, 0);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -217,6 +184,9 @@ class Controller {
         $command = $this->getCredentialPrefix();
         $command .= "aws s3 ls {$this->bucketData->name} --region {$this->bucketData->region} | awk '{\$1=\$2=\$3=\"\"; print $0}' | sed 's/^[ \\t]*//'";
         $files = shell_exec($command);
+        if(!$files) {
+            throw new \Exception("Error getting S3 files: ". $files);
+        }
         $files = explode("\n", $files);
         return $this->removeDimensionFiles($files);
     }
