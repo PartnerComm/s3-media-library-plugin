@@ -29,7 +29,7 @@ class Controller {
                 $this->result .= "No Files Will be Removed From Media Library\n";
             } else {
                 $this->result .= "Files That Will Be Removed From Media Library:\n";
-                foreach($filesToAdd as $file) {
+                foreach($filesToRemove as $file) {
                     $this->result .= $file ."\n";
                 }
             }
@@ -92,9 +92,23 @@ class Controller {
         }
     }
 
-    // @TODO
     protected function removeFile($file) {
-        global $wpdb;
+        wp_delete_attachment($this->getAttachmentId($file));
+    }
+
+    protected function getAttachmentId($file) {
+        $media_query = new \WP_Query(
+            array(
+                'post_type' => 'attachment',
+                'post_status' => 'inherit',
+                'posts_per_page' => -1,
+                'post_title' => $this->removeExtension($file)
+            )
+        );
+        if(empty($media_query->posts)) {
+            throw new \Exception ("Not able to find post for file: $file");
+        }
+        return $media_query->posts[0]->ID;
     }
 
     protected function syncThumbnailsS3($file) {
