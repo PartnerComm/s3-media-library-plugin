@@ -1,7 +1,7 @@
 {
   "name": "pcomm/s3-media-library-sync",
   "description": "Plugin for syncing files in the Media Library with the files that are in S3",
-  "version": "0.0.3",
+  "version": "1.0.0",
   "type": "wordpress-plugin",
   "repositories": [
     {
